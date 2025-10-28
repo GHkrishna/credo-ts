@@ -1,11 +1,10 @@
 import type { RecordTags, TagsBase } from '@credo-ts/core'
-import type { OpenId4VciCredentialOfferPayload } from '../../shared'
-
-import { BaseRecord, CredoError, isJsonObject, utils } from '@credo-ts/core'
+import { BaseRecord, CredoError, DateTransformer, isJsonObject, utils } from '@credo-ts/core'
 import { PkceCodeChallengeMethod } from '@openid4vc/oauth2'
 import { Transform, TransformationType } from 'class-transformer'
-
+import type { OpenId4VciCredentialOfferPayload } from '../../shared'
 import { OpenId4VcIssuanceSessionState } from '../OpenId4VcIssuanceSessionState'
+import type { OpenId4VciVersion } from '../OpenId4VcIssuerServiceOptions'
 
 export type OpenId4VcIssuanceSessionRecordTags = RecordTags<OpenId4VcIssuanceSessionRecord>
 
@@ -17,7 +16,7 @@ export interface OpenId4VcIssuanceSessionDpop {
   required: boolean
 
   /**
-   * JWK thumbprint of the dpop key. This is mosty used when a dpop key is bound
+   * JWK thumbprint of the dpop key. This is mostly used when a dpop key is bound
    * to the issuance session before the access token is created (which contains the dpop key)
    */
   dpopJkt?: string
@@ -25,7 +24,7 @@ export interface OpenId4VcIssuanceSessionDpop {
 
 export interface OpenId4VcIssuanceSessionWalletAttestation {
   /**
-   * Wheter presentation of a wallet attestation is required.
+   * Whether presentation of a wallet attestation is required.
    * Can be set to false to override the global config
    */
   required: boolean
@@ -77,6 +76,11 @@ export interface OpenId4VcIssuanceSessionPresentation {
   openId4VcVerificationSessionId?: string
 }
 
+export interface OpenId4VcIssuanceSessionPkce {
+  codeChallengeMethod: PkceCodeChallengeMethod
+  codeChallenge: string
+}
+
 export type DefaultOpenId4VcIssuanceSessionRecordTags = {
   issuerId: string
   cNonce?: string
@@ -97,9 +101,21 @@ export type DefaultOpenId4VcIssuanceSessionRecordTags = {
   presentationAuthSession?: string
 }
 
+export interface OpenId4VcIssuanceSessionRecordTransaction {
+  transactionId: string
+
+  // The expected number of credentials that will be issued in this transaction
+  numberOfCredentials: number
+
+  // The credential configuration that is used for this transaction.
+  credentialConfigurationId: string
+}
+
 export interface OpenId4VcIssuanceSessionRecordProps {
+  createdAt: Date
+  expiresAt: Date
+
   id?: string
-  createdAt?: Date
   tags?: TagsBase
 
   state: OpenId4VcIssuanceSessionState
@@ -134,6 +150,9 @@ export interface OpenId4VcIssuanceSessionRecordProps {
    */
   presentation?: OpenId4VcIssuanceSessionPresentation
 
+  // Transaction data for deferred credential issuances
+  transactions?: OpenId4VcIssuanceSessionRecordTransaction[]
+
   credentialOfferUri?: string
   credentialOfferId: string
 
@@ -141,11 +160,27 @@ export interface OpenId4VcIssuanceSessionRecordProps {
 
   issuanceMetadata?: Record<string, unknown>
   errorMessage?: string
+
+  generateRefreshTokens?: boolean
+
+  /**
+   * The version of openid4ci used for the request
+   */
+  openId4VciVersion: OpenId4VciVersion
 }
 
 export class OpenId4VcIssuanceSessionRecord extends BaseRecord<DefaultOpenId4VcIssuanceSessionRecordTags> {
   public static readonly type = 'OpenId4VcIssuanceSessionRecord'
   public readonly type = OpenId4VcIssuanceSessionRecord.type
+
+  /**
+   * Expiry time for the issuance session. This can change dynamically during
+   * the session lifetime, based on the possible deferrals.
+   *
+   * @since 0.6
+   */
+  @DateTransformer()
+  public expiresAt?: Date
 
   /**
    * The id of the issuer that this session is for.
@@ -171,6 +206,11 @@ export class OpenId4VcIssuanceSessionRecord extends BaseRecord<DefaultOpenId4VcI
   public issuedCredentials: string[] = []
 
   /**
+   * The credential transactions for deferred credentials.
+   */
+  public transactions: OpenId4VcIssuanceSessionRecordTransaction[] = []
+
+  /**
    * Pre authorized code used for the issuance session. Only used when a pre-authorized credential
    * offer is created.
    */
@@ -189,10 +229,7 @@ export class OpenId4VcIssuanceSessionRecord extends BaseRecord<DefaultOpenId4VcI
   /**
    * Proof Key Code Exchange
    */
-  public pkce?: {
-    codeChallengeMethod: PkceCodeChallengeMethod
-    codeChallenge: string
-  }
+  public pkce?: OpenId4VcIssuanceSessionPkce
 
   walletAttestation?: OpenId4VcIssuanceSessionWalletAttestation
   dpop?: OpenId4VcIssuanceSessionDpop
@@ -256,6 +293,20 @@ export class OpenId4VcIssuanceSessionRecord extends BaseRecord<DefaultOpenId4VcI
   public credentialOfferId?: string
 
   /**
+   * Whether to generate refresh tokens for the issuance session.
+   *
+   * @since 0.6
+   */
+  public generateRefreshTokens?: boolean
+
+  /**
+   * The version of openid4ci used for the request
+   *
+   * @since 0.6
+   */
+  public openId4VciVersion?: OpenId4VciVersion
+
+  /**
    * Optional error message of the error that occurred during the issuance session. Will be set when state is {@link OpenId4VcIssuanceSessionState.Error}
    */
   public errorMessage?: string
@@ -265,7 +316,8 @@ export class OpenId4VcIssuanceSessionRecord extends BaseRecord<DefaultOpenId4VcI
 
     if (props) {
       this.id = props.id ?? utils.uuid()
-      this.createdAt = props.createdAt ?? new Date()
+      this.createdAt = props.createdAt
+      this.expiresAt = props.expiresAt
       this._tags = props.tags ?? {}
 
       this.issuerId = props.issuerId
@@ -281,13 +333,15 @@ export class OpenId4VcIssuanceSessionRecord extends BaseRecord<DefaultOpenId4VcI
       this.dpop = props.dpop
       this.walletAttestation = props.walletAttestation
       this.state = props.state
+      this.generateRefreshTokens = props.generateRefreshTokens
       this.errorMessage = props.errorMessage
+      this.transactions = props.transactions ?? []
+      this.openId4VciVersion = props.openId4VciVersion
     }
   }
 
   public assertState(expectedStates: OpenId4VcIssuanceSessionState | OpenId4VcIssuanceSessionState[]) {
     if (!Array.isArray(expectedStates)) {
-      // biome-ignore lint/style/noParameterAssign: <explanation>
       expectedStates = [expectedStates]
     }
 

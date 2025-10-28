@@ -212,7 +212,7 @@ describe('DifPresentationExchangeService', () => {
                     place_of_birth: {},
                     vct: 'https://example.bmi.bund.de/credential/pid/1.0',
                   },
-                  claimFormat: 'vc+sd-jwt',
+                  claimFormat: 'dc+sd-jwt',
                 },
               ],
             },
@@ -334,7 +334,7 @@ describe('DifPresentationExchangeService', () => {
                     place_of_birth: {},
                     vct: 'https://example.bmi.bund.de/credential/pid/1.0',
                   },
-                  claimFormat: 'vc+sd-jwt',
+                  claimFormat: 'dc+sd-jwt',
                 },
               ],
             },
@@ -483,17 +483,18 @@ describe('DifPresentationExchangeService', () => {
 
     const selectedCredentials = pexService.selectCredentialsForRequest(credentialsForRequest)
 
-    jest.spyOn(kms, 'sign').mockResolvedValue({ signature: new Uint8Array([]) })
+    vi.spyOn(kms, 'sign').mockResolvedValue({ signature: new Uint8Array([]) })
     const presentation = await pexService.createPresentation(agentContext, {
       credentialsForInputDescriptor: selectedCredentials,
       challenge: 'something',
       presentationDefinition,
       domain: 'hello',
       presentationSubmissionLocation: DifPresentationExchangeSubmissionLocation.EXTERNAL,
-      openid4vp: {
-        type: 'openId4Vp',
+      mdocSessionTranscript: {
+        type: 'openId4VpDraft18',
         clientId: 'hello',
         mdocGeneratedNonce: 'something',
+        verifierGeneratedNonce: 'something',
         responseUri: 'https://response.com',
       },
     })
@@ -614,7 +615,7 @@ describe('DifPresentationExchangeService', () => {
 
     const selectedCredentials = pexService.selectCredentialsForRequest(credentialsForRequest)
 
-    jest.spyOn(kms, 'sign').mockResolvedValue({ signature: new Uint8Array([]) })
+    vi.spyOn(kms, 'sign').mockResolvedValue({ signature: new Uint8Array([]) })
 
     const presentation = await pexService.createPresentation(agentContext, {
       credentialsForInputDescriptor: selectedCredentials,
@@ -622,10 +623,11 @@ describe('DifPresentationExchangeService', () => {
       presentationDefinition,
       domain: 'hello',
       presentationSubmissionLocation: DifPresentationExchangeSubmissionLocation.EXTERNAL,
-      openid4vp: {
-        type: 'openId4Vp',
+      mdocSessionTranscript: {
+        type: 'openId4VpDraft18',
         clientId: 'hello',
         mdocGeneratedNonce: 'something',
+        verifierGeneratedNonce: 'something',
         responseUri: 'https://response.com',
       },
     })
@@ -755,7 +757,7 @@ describe('DifPresentationExchangeService', () => {
 
     const selectedCredentials = pexService.selectCredentialsForRequest(credentialsForRequest)
 
-    jest.spyOn(kms, 'sign').mockResolvedValue({ signature: new Uint8Array([]) })
+    vi.spyOn(kms, 'sign').mockResolvedValue({ signature: new Uint8Array([]) })
 
     const presentation = await pexService.createPresentation(agentContext, {
       credentialsForInputDescriptor: selectedCredentials,
@@ -763,9 +765,10 @@ describe('DifPresentationExchangeService', () => {
       presentationDefinition,
       domain: 'hello',
       presentationSubmissionLocation: DifPresentationExchangeSubmissionLocation.EXTERNAL,
-      openid4vp: {
-        type: 'openId4Vp',
+      mdocSessionTranscript: {
+        type: 'openId4VpDraft18',
         clientId: 'hello',
+        verifierGeneratedNonce: 'something',
         mdocGeneratedNonce: 'something',
         responseUri: 'https://response.com',
       },
