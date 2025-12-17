@@ -8,9 +8,11 @@ import {
   parseDid,
   SdJwtVcRecord,
   W3cCredential,
+  W3cCredentialRecord,
   W3cCredentialSubject,
   W3cIssuer,
   W3cV2Credential,
+  W3cV2CredentialRecord,
   W3cV2CredentialSubject,
   W3cV2Issuer,
   w3cDate,
@@ -134,8 +136,8 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
       verificationMethod: verifier.verificationMethod.id,
     })
 
-    await holderTenant.w3cCredentials.storeCredential({ credential: signedCredential1 })
-    await holderTenant.w3cCredentials.storeCredential({ credential: signedCredential2 })
+    await holderTenant.w3cCredentials.store({ record: W3cCredentialRecord.fromCredential(signedCredential1) })
+    await holderTenant.w3cCredentials.store({ record: W3cCredentialRecord.fromCredential(signedCredential2) })
 
     const { authorizationRequest: authorizationRequestUri1, verificationSession: verificationSession1 } =
       await verifierTenant1.openid4vc.verifier.createAuthorizationRequest({
@@ -189,15 +191,26 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
           valid_credentials: [
             {
               record: {
-                credential: {
-                  type: ['VerifiableCredential', 'OpenBadgeCredential'],
-                },
+                credentialInstances: [
+                  {
+                    credential: expect.stringContaining('ey'),
+                  },
+                ],
               },
             },
           ],
         },
       },
     })
+
+    // biome-ignore lint/suspicious/noExplicitAny: no explanation
+    const validCredential: any =
+      resolvedProofRequest1.dcql?.queryResult.credential_matches.OpenBadgeCredentialDescriptor.valid_credentials?.[0]
+
+    expect((validCredential.record as W3cCredentialRecord).firstCredential.type).toEqual([
+      'VerifiableCredential',
+      'OpenBadgeCredential',
+    ])
 
     const resolvedProofRequest2 =
       await holderTenant.openid4vc.holder.resolveOpenId4VpAuthorizationRequest(authorizationRequestUri2)
@@ -210,15 +223,26 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
           valid_credentials: [
             {
               record: {
-                credential: {
-                  type: ['VerifiableCredential', 'UniversityDegreeCredential'],
-                },
+                credentialInstances: [
+                  {
+                    credential: expect.stringContaining('ey'),
+                  },
+                ],
               },
             },
           ],
         },
       },
     })
+
+    // biome-ignore lint/suspicious/noExplicitAny: no explanation
+    const validCredential2: any =
+      resolvedProofRequest2.dcql?.queryResult.credential_matches.UniversityDegree.valid_credentials?.[0]
+
+    expect((validCredential2.record as W3cCredentialRecord).firstCredential.type).toEqual([
+      'VerifiableCredential',
+      'UniversityDegreeCredential',
+    ])
 
     if (!resolvedProofRequest1.dcql || !resolvedProofRequest2.dcql) {
       throw new Error('dcql not defined')
@@ -369,8 +393,8 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
       holder: { method: 'did', didUrl: holder1.kid },
     })
 
-    await holderTenant.w3cV2Credentials.storeCredential({ credential: signedCredential1 })
-    await holderTenant.w3cV2Credentials.storeCredential({ credential: signedCredential2 })
+    await holderTenant.w3cV2Credentials.store({ record: W3cV2CredentialRecord.fromCredential(signedCredential1) })
+    await holderTenant.w3cV2Credentials.store({ record: W3cV2CredentialRecord.fromCredential(signedCredential2) })
 
     const { authorizationRequest: authorizationRequestUri1, verificationSession: verificationSession1 } =
       await verifierTenant1.modules.openid4vc.verifier.createAuthorizationRequest({
@@ -454,17 +478,26 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
           valid_credentials: [
             {
               record: {
-                credential: {
-                  resolvedCredential: {
-                    type: ['VerifiableCredential', 'OpenBadgeCredential'],
+                credentialInstances: [
+                  {
+                    credential: expect.stringContaining('ey'),
                   },
-                },
+                ],
               },
             },
           ],
         },
       },
     })
+
+    // biome-ignore lint/suspicious/noExplicitAny: no explanation
+    const validCredential: any =
+      resolvedProofRequest1.dcql?.queryResult.credential_matches.OpenBadgeCredentialDescriptor.valid_credentials?.[0]
+
+    expect((validCredential.record as W3cV2CredentialRecord).firstCredential.resolvedCredential.type).toEqual([
+      'VerifiableCredential',
+      'OpenBadgeCredential',
+    ])
 
     const resolvedProofRequest2 =
       await holderTenant.modules.openid4vc.holder.resolveOpenId4VpAuthorizationRequest(authorizationRequestUri2)
@@ -477,17 +510,25 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
           valid_credentials: [
             {
               record: {
-                credential: {
-                  resolvedCredential: {
-                    type: ['VerifiableCredential', 'UniversityDegreeCredential'],
+                credentialInstances: [
+                  {
+                    credential: expect.stringContaining('ey'),
                   },
-                },
+                ],
               },
             },
           ],
         },
       },
     })
+
+    // biome-ignore lint/suspicious/noExplicitAny: no explanation
+    const validCredential2: any =
+      resolvedProofRequest2.dcql?.queryResult.credential_matches.UniversityDegree.valid_credentials?.[0]
+    expect((validCredential2.record as W3cV2CredentialRecord).firstCredential.resolvedCredential.type).toEqual([
+      'VerifiableCredential',
+      'UniversityDegreeCredential',
+    ])
 
     if (!resolvedProofRequest1.dcql || !resolvedProofRequest2.dcql) {
       throw new Error('dcql not defined')
@@ -704,7 +745,7 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
     })
 
     const rawCertificate = certificate.toString('base64')
-    await holder.agent.sdJwtVc.store(signedSdJwtVc.compact)
+    await holder.agent.sdJwtVc.store({ record: SdJwtVcRecord.fromSdJwtVc(signedSdJwtVc) })
 
     holder.agent.x509.config.addTrustedCertificate(rawCertificate)
     verifier.agent.x509.config.addTrustedCertificate(rawCertificate)
@@ -900,6 +941,11 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
               kid: '#z6MktiQQEqm2yapXBDt1WEVB3dqgvyzi96FuFANYmrgTrKV9',
               typ: 'dc+sd-jwt',
             },
+            holder: {
+              didUrl:
+                'did:key:z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc#z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc',
+              method: 'did',
+            },
             payload: {
               _sd: [expect.any(String), expect.any(String)],
               _sd_alg: 'sha-256',
@@ -963,7 +1009,7 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
       },
     })
 
-    await holder.agent.sdJwtVc.store(signedSdJwtVc.compact)
+    await holder.agent.sdJwtVc.store({ record: SdJwtVcRecord.fromSdJwtVc(signedSdJwtVc) })
     const dcqlQuery = {
       credentials: [
         {
@@ -995,7 +1041,7 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
       })
 
     expect(authorizationRequest).toEqual(
-      `openid4vp://?response_type=vp_token&client_id=redirect_uri%3A${encodeURIComponent(authorizationRequestObject.response_uri as string)}&response_uri=${encodeURIComponent(authorizationRequestObject.response_uri as string)}&response_mode=direct_post&nonce=${authorizationRequestObject.nonce}&dcql_query=%7B%22credentials%22%3A%5B%7B%22id%22%3A%22OpenBadgeCredentialDescriptor%22%2C%22format%22%3A%22dc%2Bsd-jwt%22%2C%22meta%22%3A%7B%22vct_values%22%3A%5B%22OpenBadgeCredential%22%5D%7D%2C%22claims%22%3A%5B%7B%22path%22%3A%5B%22university%22%5D%7D%5D%7D%5D%7D&client_metadata=%7B%22vp_formats_supported%22%3A%7B%22dc%2Bsd-jwt%22%3A%7B%22sd-jwt_alg_values%22%3A%5B%22HS256%22%2C%22HS384%22%2C%22HS512%22%2C%22RS256%22%2C%22RS384%22%2C%22RS512%22%2C%22ES256%22%2C%22ES384%22%2C%22ES512%22%2C%22PS256%22%2C%22PS384%22%2C%22PS512%22%2C%22EdDSA%22%2C%22ES256K%22%5D%2C%22kb-jwt_alg_values%22%3A%5B%22HS256%22%2C%22HS384%22%2C%22HS512%22%2C%22RS256%22%2C%22RS384%22%2C%22RS512%22%2C%22ES256%22%2C%22ES384%22%2C%22ES512%22%2C%22PS256%22%2C%22PS384%22%2C%22PS512%22%2C%22EdDSA%22%2C%22ES256K%22%5D%7D%7D%2C%22response_types_supported%22%3A%5B%22vp_token%22%5D%7D&state=${authorizationRequestObject.state}`
+      `openid4vp://?response_type=vp_token&client_id=redirect_uri%3A${encodeURIComponent(authorizationRequestObject.response_uri as string)}&response_uri=${encodeURIComponent(authorizationRequestObject.response_uri as string)}&response_mode=direct_post&nonce=${authorizationRequestObject.nonce}&dcql_query=%7B%22credentials%22%3A%5B%7B%22id%22%3A%22OpenBadgeCredentialDescriptor%22%2C%22format%22%3A%22dc%2Bsd-jwt%22%2C%22meta%22%3A%7B%22vct_values%22%3A%5B%22OpenBadgeCredential%22%5D%7D%2C%22claims%22%3A%5B%7B%22path%22%3A%5B%22university%22%5D%7D%5D%7D%5D%7D&client_metadata=%7B%22vp_formats_supported%22%3A%7B%22dc%2Bsd-jwt%22%3A%7B%22sd-jwt_alg_values%22%3A%5B%22HS256%22%2C%22HS384%22%2C%22HS512%22%2C%22RS256%22%2C%22RS384%22%2C%22RS512%22%2C%22ES256%22%2C%22ES384%22%2C%22ES512%22%2C%22PS256%22%2C%22PS384%22%2C%22PS512%22%2C%22EdDSA%22%2C%22Ed25519%22%2C%22ES256K%22%5D%2C%22kb-jwt_alg_values%22%3A%5B%22HS256%22%2C%22HS384%22%2C%22HS512%22%2C%22RS256%22%2C%22RS384%22%2C%22RS512%22%2C%22ES256%22%2C%22ES384%22%2C%22ES512%22%2C%22PS256%22%2C%22PS384%22%2C%22PS512%22%2C%22EdDSA%22%2C%22Ed25519%22%2C%22ES256K%22%5D%7D%7D%2C%22response_types_supported%22%3A%5B%22vp_token%22%5D%7D&state=${authorizationRequestObject.state}`
     )
 
     const resolvedAuthorizationRequest =
@@ -1074,7 +1120,7 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
     })
 
     const rawCertificate = certificate.toString('base64')
-    await holder.agent.sdJwtVc.store(signedSdJwtVc.compact)
+    await holder.agent.sdJwtVc.store({ record: SdJwtVcRecord.fromSdJwtVc(signedSdJwtVc) })
 
     holder.agent.x509.config.addTrustedCertificate(rawCertificate)
     verifier.agent.x509.config.addTrustedCertificate(rawCertificate)
@@ -1240,6 +1286,11 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
               kid: '#z6MktiQQEqm2yapXBDt1WEVB3dqgvyzi96FuFANYmrgTrKV9',
               typ: 'vc+sd-jwt',
             },
+            holder: {
+              didUrl:
+                'did:key:z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc#z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc',
+              method: 'did',
+            },
             payload: {
               _sd: [expect.any(String), expect.any(String)],
               _sd_alg: 'sha-256',
@@ -1329,8 +1380,8 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
     })
 
     const rawCertificate = certificate.toString('base64')
-    await holder.agent.sdJwtVc.store(signedSdJwtVc.compact)
-    await holder.agent.sdJwtVc.store(signedSdJwtVc2.compact)
+    await holder.agent.sdJwtVc.store({ record: SdJwtVcRecord.fromSdJwtVc(signedSdJwtVc) })
+    await holder.agent.sdJwtVc.store({ record: SdJwtVcRecord.fromSdJwtVc(signedSdJwtVc2) })
 
     holder.agent.x509.config.addTrustedCertificate(rawCertificate)
     verifier.agent.x509.config.addTrustedCertificate(rawCertificate)
@@ -1551,6 +1602,11 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
               kid: '#z6MktiQQEqm2yapXBDt1WEVB3dqgvyzi96FuFANYmrgTrKV9',
               typ: 'vc+sd-jwt',
             },
+            holder: {
+              didUrl:
+                'did:key:z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc#z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc',
+              method: 'did',
+            },
             payload: {
               _sd: [expect.any(String), expect.any(String)],
               _sd_alg: 'sha-256',
@@ -1596,6 +1652,11 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
               alg: 'EdDSA',
               kid: '#z6MktiQQEqm2yapXBDt1WEVB3dqgvyzi96FuFANYmrgTrKV9',
               typ: 'vc+sd-jwt',
+            },
+            holder: {
+              didUrl:
+                'did:key:z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc#z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc',
+              method: 'did',
             },
             payload: {
               _sd: [expect.any(String), expect.any(String)],
@@ -1685,8 +1746,8 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
     })
 
     const rawCertificate = certificate.toString('base64')
-    await holder.agent.sdJwtVc.store(signedSdJwtVc.compact)
-    await holder.agent.sdJwtVc.store(signedSdJwtVc2.compact)
+    await holder.agent.sdJwtVc.store({ record: SdJwtVcRecord.fromSdJwtVc(signedSdJwtVc) })
+    await holder.agent.sdJwtVc.store({ record: SdJwtVcRecord.fromSdJwtVc(signedSdJwtVc2) })
 
     holder.agent.x509.config.addTrustedCertificate(rawCertificate)
     verifier.agent.x509.config.addTrustedCertificate(rawCertificate)
@@ -1977,6 +2038,11 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
               kid: '#z6MktiQQEqm2yapXBDt1WEVB3dqgvyzi96FuFANYmrgTrKV9',
               typ: 'dc+sd-jwt',
             },
+            holder: {
+              didUrl:
+                'did:key:z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc#z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc',
+              method: 'did',
+            },
             payload: {
               _sd: [expect.any(String), expect.any(String)],
               _sd_alg: 'sha-256',
@@ -2024,6 +2090,11 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
               alg: 'EdDSA',
               kid: '#z6MktiQQEqm2yapXBDt1WEVB3dqgvyzi96FuFANYmrgTrKV9',
               typ: 'dc+sd-jwt',
+            },
+            holder: {
+              didUrl:
+                'did:key:z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc#z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc',
+              method: 'did',
             },
             payload: {
               _sd: [expect.any(String), expect.any(String)],
@@ -2112,7 +2183,10 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
     })
 
     const rawCertificate = certificate.toString('base64')
-    await holder.agent.mdoc.store(signedMdoc)
+    signedMdoc.deviceKeyId = holderKey.keyId
+    await holder.agent.mdoc.store({
+      record: MdocRecord.fromMdoc(signedMdoc),
+    })
 
     holder.agent.x509.config.addTrustedCertificate(rawCertificate)
     verifier.agent.x509.config.addTrustedCertificate(rawCertificate)
@@ -2199,7 +2273,7 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
         _sd: ['university', 'name'],
       },
     })
-    await holder.agent.sdJwtVc.store(signedSdJwtVc.compact)
+    await holder.agent.sdJwtVc.store({ record: SdJwtVcRecord.fromSdJwtVc(signedSdJwtVc) })
 
     const issuerCertificate = await X509Service.createCertificate(verifier.agent.context, {
       authorityKey: Kms.PublicJwk.fromPublicJwk(
@@ -2249,7 +2323,10 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
     })
 
     const rawCertificate = certificate.toString('base64')
-    await holder.agent.mdoc.store(signedMdoc)
+    signedMdoc.deviceKeyId = holderKey.keyId
+    await holder.agent.mdoc.store({
+      record: MdocRecord.fromMdoc(signedMdoc),
+    })
 
     holder.agent.x509.config.addTrustedCertificate(rawCertificate)
     verifier.agent.x509.config.addTrustedCertificate(rawCertificate)
@@ -2508,6 +2585,11 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
                 sd_hash: expect.any(String),
               },
             },
+            holder: {
+              didUrl:
+                'did:key:z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc#z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc',
+              method: 'did',
+            },
             payload: {
               _sd: [expect.any(String), expect.any(String)],
               _sd_alg: 'sha-256',
@@ -2573,7 +2655,7 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
         _sd: ['university', 'name'],
       },
     })
-    await holder.agent.sdJwtVc.store(signedSdJwtVc.compact)
+    await holder.agent.sdJwtVc.store({ record: SdJwtVcRecord.fromSdJwtVc(signedSdJwtVc) })
 
     const selfSignedCertificate = await X509Service.createCertificate(verifier.agent.context, {
       authorityKey: Kms.PublicJwk.fromPublicJwk(
@@ -2632,7 +2714,10 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
     })
 
     const rawCertificate = certificate.toString('base64')
-    await holder.agent.mdoc.store(signedMdoc)
+    signedMdoc.deviceKeyId = holderKey.keyId
+    await holder.agent.mdoc.store({
+      record: MdocRecord.fromMdoc(signedMdoc),
+    })
 
     holder.agent.x509.config.addTrustedCertificate(rawCertificate)
     verifier.agent.x509.config.addTrustedCertificate(rawCertificate)

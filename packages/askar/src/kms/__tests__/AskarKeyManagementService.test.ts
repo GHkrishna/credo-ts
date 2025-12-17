@@ -34,11 +34,7 @@ const agentContext = getAgentContext({
     ],
   ],
 })
-const agentContextTenant = getAgentContext({
-  contextCorrelationId: '1a2eb2ed-49e4-43bf-bbca-de1cfbf1d890',
-  dependencyManager: agentContext.dependencyManager.createChild(),
-  isRootAgentContext: false,
-})
+
 const service = new AskarKeyManagementService()
 
 describe('AskarKeyManagementService', () => {
@@ -64,31 +60,6 @@ describe('AskarKeyManagementService', () => {
         name: 'key-1',
         tags: {},
       })
-
-      await askarStoreManager.deleteStore(agentContext)
-    })
-
-    it("automatically creates a profile if it doesn't exist yet", async () => {
-      const askarStoreManager = agentContext.dependencyManager.resolve(AskarStoreManager)
-      const store = await askarStoreManager.provisionStore(agentContext)
-
-      expect(await store.listProfiles()).toEqual(['default'])
-
-      await service.createKey(agentContextTenant, {
-        type: { kty: 'EC', crv: 'P-256' },
-        keyId: 'key-2',
-      })
-
-      expect(await store.listProfiles()).toEqual([agentContextTenant.contextCorrelationId, 'default'])
-      const session = await store.session(agentContextTenant.contextCorrelationId).open()
-      expect(await session.fetchKey({ name: 'key-2' })).toEqual({
-        algorithm: 'p256',
-        key: expect.any(Object),
-        metadata: null,
-        name: 'key-2',
-        tags: {},
-      })
-      await session.close()
 
       await askarStoreManager.deleteStore(agentContext)
     })
@@ -353,7 +324,23 @@ describe('AskarKeyManagementService', () => {
       })
     })
 
-    it('throws error if algorithm is not supprted by backend', async () => {
+    it('signs with Ed25519', async () => {
+      const { keyId } = await service.createKey(agentContext, {
+        type: { kty: 'OKP', crv: 'Ed25519' },
+      })
+
+      const result = await service.sign(agentContext, {
+        keyId,
+        algorithm: 'Ed25519',
+        data: new Uint8Array([1, 2, 3]),
+      })
+
+      expect(result).toEqual({
+        signature: expect.any(Uint8Array),
+      })
+    })
+
+    it('throws error if algorithm is not supported by backend', async () => {
       const { keyId } = await service.createKey(agentContext, {
         type: { kty: 'EC', crv: 'P-256' },
       })

@@ -1,5 +1,4 @@
-import { JsonTransformer } from '@credo-ts/core'
-
+import { JsonTransformer, Kms } from '@credo-ts/core'
 import { OpenId4VcIssuerRecord } from '../OpenId4VcIssuerRecord'
 
 describe('OpenId4VcIssuerRecord', () => {
@@ -113,7 +112,7 @@ describe('OpenId4VcIssuerRecord', () => {
         format: 'mso_mdoc',
         doctype: 'some-doc-type',
         cryptographic_binding_methods_supported: ['did:key'],
-        credential_signing_alg_values_supported: ['EdDSA'],
+        credential_signing_alg_values_supported: [Kms.KnownCoseSignatureAlgorithms.Ed25519],
         credential_metadata: {
           display: [
             {
@@ -125,7 +124,7 @@ describe('OpenId4VcIssuerRecord', () => {
         },
       },
       'c3db5513-ae2b-46e9-8a0d-fbfd0ce52b6a': {
-        format: 'vc+sd-jwt',
+        format: 'dc+sd-jwt',
         vct: 'something',
         cryptographic_binding_methods_supported: ['did:key'],
         credential_signing_alg_values_supported: ['EdDSA'],
@@ -197,7 +196,7 @@ describe('OpenId4VcIssuerRecord', () => {
     ])
   })
 
-  test('removes logo if empty objct in display metadata', () => {
+  test('removes logo if empty object in display metadata', () => {
     const instance = JsonTransformer.fromJSON(
       {
         display: [
@@ -217,7 +216,7 @@ describe('OpenId4VcIssuerRecord', () => {
     ])
   })
 
-  test('does not transfrom display metadata if already using uri', () => {
+  test('does not transform display metadata if already using uri', () => {
     const instance = JsonTransformer.fromJSON(
       {
         display: [
@@ -237,6 +236,34 @@ describe('OpenId4VcIssuerRecord', () => {
         name: 'hello',
         logo: {
           uri: 'uri',
+        },
+      },
+    ])
+  })
+
+  test('should correctly transform authorization servers configurations', () => {
+    const instance = JsonTransformer.fromJSON(
+      {
+        authorizationServerConfigs: [
+          {
+            issuer: 'https://issuer.example.com',
+            clientAuthentication: {
+              clientId: 'issuer-server',
+              clientSecret: 'issuer-server',
+            },
+          },
+        ],
+      },
+      OpenId4VcIssuerRecord
+    )
+
+    expect(instance.authorizationServerConfigs).toEqual([
+      {
+        type: 'direct',
+        issuer: 'https://issuer.example.com',
+        clientAuthentication: {
+          clientId: 'issuer-server',
+          clientSecret: 'issuer-server',
         },
       },
     ])

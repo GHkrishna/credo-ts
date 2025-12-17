@@ -1,10 +1,11 @@
-import { BaseRecord, CredoError, Kms, type RecordTags, type TagsBase, utils } from '@credo-ts/core'
+import { BaseRecord, CredoError, isJsonObject, Kms, type RecordTags, type TagsBase, utils } from '@credo-ts/core'
 import { credentialsSupportedToCredentialConfigurationsSupported } from '@openid4vc/openid4vci'
 import { Transform, TransformationType } from 'class-transformer'
 import type {
   OpenId4VciAuthorizationServerConfig,
   OpenId4VciCredentialConfigurationsSupportedWithFormats,
   OpenId4VciCredentialIssuerMetadataDisplay,
+  OpenId4VcJwtIssuerEncoded,
 } from '../../shared'
 import type { OpenId4VciBatchCredentialIssuanceOptions } from '../OpenId4VcIssuerServiceOptions'
 
@@ -12,6 +13,15 @@ export type OpenId4VcIssuerRecordTags = RecordTags<OpenId4VcIssuerRecord>
 
 export type DefaultOpenId4VcIssuerRecordTags = {
   issuerId: string
+}
+
+export type OpenId4VcIssuerRecordSignedMetadata = {
+  signer: OpenId4VcJwtIssuerEncoded
+
+  /**
+   * The credential issuer metadata as a signed JWT
+   */
+  jwt: string
 }
 
 export type OpenId4VcIssuerRecordProps = {
@@ -38,9 +48,15 @@ export type OpenId4VcIssuerRecordProps = {
   credentialConfigurationsSupported: OpenId4VciCredentialConfigurationsSupportedWithFormats
 
   /**
-   * Indicate support for batch issuane of credentials
+   * Indicate support for batch issuance of credentials
    */
   batchCredentialIssuance?: OpenId4VciBatchCredentialIssuanceOptions
+
+  /**
+   * When signed metadata is supported, this stores the
+   * signed jwt and signer information to update the JWT in the future.
+   */
+  signedMetadata?: OpenId4VcIssuerRecordSignedMetadata
 }
 
 /**
@@ -98,9 +114,38 @@ export class OpenId4VcIssuerRecord extends BaseRecord<DefaultOpenId4VcIssuerReco
     return value
   })
   public display?: OpenId4VciCredentialIssuerMetadataDisplay[]
+
+  // Adds the type field if missing (for older records)
+  @Transform(({ type, value }) => {
+    if (type === TransformationType.PLAIN_TO_CLASS && Array.isArray(value)) {
+      return value.map((config) => {
+        if (isJsonObject(config) && typeof config.type === 'undefined') {
+          return {
+            ...config,
+            type: 'direct',
+          }
+        }
+
+        return config
+      })
+    }
+
+    return value
+  })
   public authorizationServerConfigs?: OpenId4VciAuthorizationServerConfig[]
+
   public dpopSigningAlgValuesSupported?: [Kms.KnownJwaSignatureAlgorithm, ...Kms.KnownJwaSignatureAlgorithm[]]
   public batchCredentialIssuance?: OpenId4VciBatchCredentialIssuanceOptions
+
+  public signedMetadata?: OpenId4VcIssuerRecordSignedMetadata
+
+  public get directAuthorizationServerConfigs() {
+    return this.authorizationServerConfigs?.filter((config) => config.type === 'direct')
+  }
+
+  public get chainedAuthorizationServerConfigs() {
+    return this.authorizationServerConfigs?.filter((config) => config.type === 'chained')
+  }
 
   public get resolvedAccessTokenPublicJwk() {
     if (this.accessTokenPublicJwk) {
@@ -134,6 +179,7 @@ export class OpenId4VcIssuerRecord extends BaseRecord<DefaultOpenId4VcIssuerReco
       this.display = props.display
       this.authorizationServerConfigs = props.authorizationServerConfigs
       this.batchCredentialIssuance = props.batchCredentialIssuance
+      this.signedMetadata = props.signedMetadata
     }
   }
 

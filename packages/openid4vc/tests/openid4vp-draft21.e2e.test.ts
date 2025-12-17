@@ -1,5 +1,5 @@
 import type { DifPresentationExchangeDefinitionV2, MdocDeviceResponse, SdJwtVc } from '@credo-ts/core'
-import { ClaimFormat, Kms, parseDid, X509Service } from '@credo-ts/core'
+import { ClaimFormat, Kms, MdocRecord, parseDid, SdJwtVcRecord, X509Service } from '@credo-ts/core'
 import express, { type Express } from 'express'
 import { InMemoryWalletModule } from '../../../tests/InMemoryWalletModule'
 import { setupNockToExpress } from '../../../tests/nockToExpress'
@@ -89,7 +89,9 @@ describe('OpenID4VP Draft 21', () => {
       extensions: { subjectAlternativeName: { name: [{ type: 'dns', value: 'localhost' }] } },
     })
 
-    await holder.agent.sdJwtVc.store(signedSdJwtVc.compact)
+    await holder.agent.sdJwtVc.store({
+      record: SdJwtVcRecord.fromSdJwtVc(signedSdJwtVc),
+    })
 
     holder.agent.x509.config.addTrustedCertificate(certificate)
     verifier.agent.x509.config.addTrustedCertificate(certificate)
@@ -163,7 +165,11 @@ describe('OpenID4VP Draft 21', () => {
                 {
                   claimFormat: ClaimFormat.SdJwtDc,
                   credentialRecord: expect.objectContaining({
-                    compactSdJwtVc: signedSdJwtVc.compact,
+                    credentialInstances: [
+                      expect.objectContaining({
+                        compactSdJwtVc: signedSdJwtVc.compact,
+                      }),
+                    ],
                   }),
                   // Name is NOT in here
                   disclosedPayload: {
@@ -277,6 +283,11 @@ describe('OpenID4VP Draft 21', () => {
               sd_hash: expect.any(String),
             },
           },
+          holder: {
+            didUrl:
+              'did:key:z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc#z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc',
+            method: 'did',
+          },
           payload: {
             _sd: [expect.any(String), expect.any(String)],
             _sd_alg: 'sha-256',
@@ -324,7 +335,9 @@ describe('OpenID4VP Draft 21', () => {
         _sd: ['university', 'name'],
       },
     })
-    await holder.agent.sdJwtVc.store(signedSdJwtVc.compact)
+    await holder.agent.sdJwtVc.store({
+      record: SdJwtVcRecord.fromSdJwtVc(signedSdJwtVc),
+    })
 
     const issuerCertificate = await X509Service.createCertificate(verifier.agent.context, {
       authorityKey: Kms.PublicJwk.fromPublicJwk(
@@ -366,8 +379,11 @@ describe('OpenID4VP Draft 21', () => {
       extensions: { subjectAlternativeName: { name: [{ type: 'dns', value: 'localhost' }] } },
     })
 
+    signedMdoc.deviceKeyId = holderKey.keyId
     const rawCertificate = certificate.toString('base64')
-    await holder.agent.mdoc.store(signedMdoc)
+    await holder.agent.mdoc.store({
+      record: MdocRecord.fromMdoc(signedMdoc),
+    })
 
     holder.agent.x509.config.addTrustedCertificate(rawCertificate)
     verifier.agent.x509.config.addTrustedCertificate(rawCertificate)
@@ -463,7 +479,11 @@ describe('OpenID4VP Draft 21', () => {
                 {
                   claimFormat: ClaimFormat.MsoMdoc,
                   credentialRecord: expect.objectContaining({
-                    base64Url: expect.any(String),
+                    credentialInstances: [
+                      expect.objectContaining({
+                        issuerSignedBase64Url: expect.any(String),
+                      }),
+                    ],
                   }),
                   // Name is NOT in here
                   disclosedPayload: {
@@ -491,7 +511,11 @@ describe('OpenID4VP Draft 21', () => {
                 {
                   claimFormat: ClaimFormat.SdJwtDc,
                   credentialRecord: expect.objectContaining({
-                    compactSdJwtVc: signedSdJwtVc.compact,
+                    credentialInstances: [
+                      expect.objectContaining({
+                        compactSdJwtVc: signedSdJwtVc.compact,
+                      }),
+                    ],
                   }),
                   // Name is NOT in here
                   disclosedPayload: {
@@ -634,6 +658,11 @@ describe('OpenID4VP Draft 21', () => {
               nonce: verificationSession.requestPayload.nonce,
               sd_hash: expect.any(String),
             },
+          },
+          holder: {
+            didUrl:
+              'did:key:z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc#z6MkpGR4gs4Rc3Zph4vj8wRnjnAxgAPSxcR8MAVKutWspQzc',
+            method: 'did',
           },
           payload: {
             _sd: [expect.any(String), expect.any(String)],

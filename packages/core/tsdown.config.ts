@@ -13,8 +13,7 @@ export default defineConfig(
         // reflect metadata needs to be imported first
         // See: https://github.com/rolldown/rolldown/issues/6436
         name: 'import-reflect-metadata-at-top',
-        banner: (chunk) => {
-          if (chunk.fileName === 'index.js') return "require('reflect-metadata')"
+        banner: (chunk: { fileName: string }) => {
           if (chunk.fileName === 'index.mjs') return "import 'reflect-metadata'"
           return ''
         },

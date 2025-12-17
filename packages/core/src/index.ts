@@ -68,7 +68,6 @@ export {
   deepEquality,
   equalsIgnoreOrder,
   equalsWithOrder,
-  HashlinkEncoder,
   IsStringOrInstance,
   IsStringOrInstanceOrArrayOfInstances,
   IsStringOrStringArray,
@@ -82,6 +81,13 @@ export {
   TypedArrayEncoder,
 } from './utils'
 export { base64ToBase64URL } from './utils/base64'
+export type {
+  CredentialMultiInstanceUseUpdateMode,
+  UseInstanceFromCredentialRecordOptions,
+  UseInstanceFromCredentialRecordReturn,
+} from './utils/credentialUse'
+export { canUseInstanceFromCredentialRecord, useInstanceFromCredentialRecord } from './utils/credentialUse'
+export { CredentialMultiInstanceState, CredentialMultiInstanceUseMode } from './utils/credentialUseTypes'
 export { getDomainFromUrl } from './utils/domain'
 export type { Constructable, Constructor, UnionToIntersection } from './utils/mixins'
 export { getDirFromFilePath, joinUriParts } from './utils/path'

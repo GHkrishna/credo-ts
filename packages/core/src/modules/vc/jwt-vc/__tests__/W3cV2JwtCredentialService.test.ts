@@ -65,8 +65,12 @@ const agentContext = getAgentContext({
 
 const kms = agentContext.dependencyManager.resolve(KeyManagementApi)
 
-kms.randomBytes = vi.fn(() => TypedArrayEncoder.fromString('salt'))
-Date.prototype.getTime = vi.fn(() => 1698151532000)
+kms.randomBytes = vi.fn(function () {
+  return TypedArrayEncoder.fromString('salt')
+})
+Date.prototype.getTime = vi.fn(function () {
+  return 1698151532000
+})
 
 const dids = agentContext.dependencyManager.resolve(DidsApi)
 const jwsService = new JwsService()
@@ -288,7 +292,7 @@ describe('W3cV2JwtCredentialService', () => {
     test('returns invalid result when credential is expired', async () => {
       const jwtVc = W3cV2JwtVerifiableCredential.fromCompact(CredoEs256DidJwkJwtVc)
 
-      jwtVc.jwt.payload.exp = new Date('2020-01-01').getTime() / 1000
+      jwtVc.jwt.payload.exp = 1577836800
 
       const result = await w3cV2JwtCredentialService.verifyCredential(agentContext, {
         credential: jwtVc,
@@ -304,7 +308,7 @@ describe('W3cV2JwtCredentialService', () => {
         },
       })
 
-      expect(result.validations.dataModel?.error?.message).toContain('JWT expired at 1698151532')
+      expect(result.validations.dataModel?.error?.message).toContain('JWT expired at 1577836800')
     })
 
     test('returns invalid result when signature is not valid', async () => {

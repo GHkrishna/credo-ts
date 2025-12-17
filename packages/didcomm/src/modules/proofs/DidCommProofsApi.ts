@@ -8,6 +8,7 @@ import type {
   AcceptProofOptions,
   AcceptProofProposalOptions,
   AcceptProofRequestOptions,
+  CreateProofProposalOptions,
   CreateProofRequestOptions,
   DeclineProofRequestOptions,
   DeleteProofOptions,
@@ -49,6 +50,10 @@ export interface DidCommProofsApi<PPs extends DidCommProofProtocol[]> {
 
   // out of band
   createRequest(options: CreateProofRequestOptions<PPs>): Promise<{
+    message: DidCommMessage
+    proofRecord: DidCommProofExchangeRecord
+  }>
+  createProofProposal(options: CreateProofProposalOptions<PPs>): Promise<{
     message: DidCommMessage
     proofRecord: DidCommProofExchangeRecord
   }>
@@ -153,6 +158,27 @@ export class DidCommProofsApi<PPs extends DidCommProofProtocol[]> implements Did
 
     await this.messageSender.sendMessage(outboundMessageContext)
     return proofRecord
+  }
+
+  /**
+   * Initiate a new presentation exchange as prover by sending an out of band proof proposal message
+   *
+   * @param options multiple properties like protocol version, proof Formats to build the proof request
+   * @returns the message itself and the proof record associated with the sent request message
+   */
+  public async createProofProposal(options: CreateProofProposalOptions<PPs>): Promise<{
+    message: DidCommMessage
+    proofRecord: DidCommProofExchangeRecord
+  }> {
+    const protocol = this.getProtocol(options.protocolVersion)
+
+    return await protocol.createProposal(this.agentContext, {
+      proofFormats: options.proofFormats,
+      autoAcceptProof: options.autoAcceptProof,
+      goalCode: options.goalCode,
+      comment: options.comment,
+      parentThreadId: options.parentThreadId,
+    })
   }
 
   /**
@@ -502,6 +528,8 @@ export class DidCommProofsApi<PPs extends DidCommProofProtocol[]> implements Did
 
     const requestMessage = await protocol.findRequestMessage(this.agentContext, proofRecord.id)
 
+    const proposalMessage = await protocol.findProposalMessage(this.agentContext, proofRecord.id)
+
     const { message: problemReport } = await protocol.createProblemReport(this.agentContext, {
       proofRecord,
       description: options.description,
@@ -513,12 +541,12 @@ export class DidCommProofsApi<PPs extends DidCommProofProtocol[]> implements Did
       : undefined
     connectionRecord?.assertReady()
 
-    // If there's no connection (so connection-less, we require the state to be request received)
+    // If there's no connection (so connection-less, we require the state to be request received or proposal sent)
     if (!connectionRecord) {
-      proofRecord.assertState(DidCommProofState.RequestReceived)
+      proofRecord.assertState([DidCommProofState.RequestReceived, DidCommProofState.ProposalSent])
 
-      if (!requestMessage) {
-        throw new CredoError(`No request message found for proof record with id '${proofRecord.id}'`)
+      if (!requestMessage && !proposalMessage) {
+        throw new CredoError(`No request or proposal message found for proof record with id '${proofRecord.id}'`)
       }
     }
 
@@ -526,6 +554,7 @@ export class DidCommProofsApi<PPs extends DidCommProofProtocol[]> implements Did
       message: problemReport,
       connectionRecord,
       associatedRecord: proofRecord,
+      lastSentMessage: proposalMessage ?? undefined,
       lastReceivedMessage: requestMessage ?? undefined,
     })
     await this.messageSender.sendMessage(outboundMessageContext)

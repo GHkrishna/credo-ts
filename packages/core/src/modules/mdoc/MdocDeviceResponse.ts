@@ -29,7 +29,7 @@ import type {
   MdocDeviceResponseVerifyOptions,
   MdocSessionTranscriptOptions,
 } from './MdocOptions'
-import { isMdocSupportedSignatureAlgorithm, mdocSupporteSignatureAlgorithms } from './mdocSupportedAlgs'
+import { isMdocSupportedSignatureAlgorithm, mdocSupportedSignatureAlgorithms } from './mdocSupportedAlgs'
 import { nameSpacesRecordToMap } from './mdocUtil'
 
 export class MdocDeviceResponse {
@@ -438,10 +438,10 @@ export class MdocDeviceResponse {
     if (!signatureAlgorithm) {
       throw new MdocError(
         `Unable to create mdoc device response. No supported signature algorithm found to sign device response for jwk  ${
-          jwk.jwkTypehumanDescription
+          jwk.jwkTypeHumanDescription
         }. Key supports algs ${jwk.supportedSignatureAlgorithms.join(
           ', '
-        )}. mdoc supports algs ${mdocSupporteSignatureAlgorithms.join(', ')}`
+        )}. mdoc supports algs ${mdocSupportedSignatureAlgorithms.join(', ')}`
       )
     }
 

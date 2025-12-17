@@ -1,4 +1,4 @@
-import { Agent, DidKey, TypedArrayEncoder } from '@credo-ts/core'
+import { Agent, DidKey, SdJwtVcRecord, TypedArrayEncoder } from '@credo-ts/core'
 import nock, { cleanAll } from 'nock'
 import { transformSeedToPrivateJwk } from '../../../../../askar/src'
 import { getAgentOptions } from '../../../../tests'
@@ -122,11 +122,29 @@ describe('sd-jwt-vc end to end test', () => {
 
     // parse SD-JWT
     const sdJwtVc = holder.sdJwtVc.fromCompact<Header, Payload>(compact)
+    sdJwtVc.kmsKeyId = holderKey.keyId
     expect(sdJwtVc).toEqual({
+      kmsKeyId: holderKey.keyId,
       claimFormat: 'dc+sd-jwt',
       compact: expect.any(String),
       encoded: expect.any(String),
       kbJwt: undefined,
+      holder: {
+        jwk: {
+          jwk: {
+            jwk: {
+              crv: 'Ed25519',
+              kid: expect.any(String),
+              kty: 'OKP',
+              x: 'oENVsxOUiH54X8wJLaVkicCRk00wBIQ4sRgbk54N8Mo',
+            },
+            multicodecPrefix: 237,
+            supportdEncryptionKeyAgreementAlgorithms: [],
+            supportedSignatureAlgorithms: ['EdDSA', 'Ed25519'],
+          },
+        },
+        method: 'jwk',
+      },
       header: {
         alg: 'EdDSA',
         kid: '#z6MktqtXNG8CDUY9PrrtoStFzeCnhpMmgxYL1gikcW3BzvNW',
@@ -209,7 +227,16 @@ describe('sd-jwt-vc end to end test', () => {
     })
 
     // Store credential
-    await holder.sdJwtVc.store(compact)
+    await holder.sdJwtVc.store({
+      record: new SdJwtVcRecord({
+        credentialInstances: [
+          {
+            compactSdJwtVc: compact,
+            kmsKeyId: holderKey.keyId,
+          },
+        ],
+      }),
+    })
 
     // Metadata created by the verifier and send out of band by the verifier to the holder
     const verifierMetadata = {
@@ -219,7 +246,7 @@ describe('sd-jwt-vc end to end test', () => {
     }
 
     const presentation = await holder.sdJwtVc.present<Payload>({
-      compactSdJwtVc: compact,
+      sdJwtVc,
       verifierMetadata,
       presentationFrame: {
         given_name: true,

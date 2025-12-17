@@ -1,17 +1,19 @@
-import type {
-  AnonCredsRegistry,
-  GetCredentialDefinitionReturn,
-  GetRevocationRegistryDefinitionReturn,
-  GetRevocationStatusListReturn,
-  GetSchemaReturn,
-  RegisterCredentialDefinitionOptions,
-  RegisterCredentialDefinitionReturn,
-  RegisterRevocationRegistryDefinitionOptions,
-  RegisterRevocationRegistryDefinitionReturn,
-  RegisterRevocationStatusListOptions,
-  RegisterRevocationStatusListReturn,
-  RegisterSchemaOptions,
-  RegisterSchemaReturn,
+import {
+  AnonCredsApi,
+  type AnonCredsRegistry,
+  AnonCredsRegistryService,
+  type GetCredentialDefinitionReturn,
+  type GetRevocationRegistryDefinitionReturn,
+  type GetRevocationStatusListReturn,
+  type GetSchemaReturn,
+  type RegisterCredentialDefinitionOptions,
+  type RegisterCredentialDefinitionReturn,
+  type RegisterRevocationRegistryDefinitionOptions,
+  type RegisterRevocationRegistryDefinitionReturn,
+  type RegisterRevocationStatusListOptions,
+  type RegisterRevocationStatusListReturn,
+  type RegisterSchemaOptions,
+  type RegisterSchemaReturn,
 } from '@credo-ts/anoncreds'
 import type { AgentContext } from '@credo-ts/core'
 import { CredoError, Hasher, JsonTransformer, TypedArrayEncoder, utils } from '@credo-ts/core'
@@ -33,6 +35,9 @@ import {
 export class CheqdAnonCredsRegistry implements AnonCredsRegistry {
   public methodName = 'cheqd'
 
+  public allowsCaching = true
+  public allowsLocalRecord = true
+
   /**
    * This class supports resolving and registering objects with cheqd identifiers.
    * It needs to include support for the schema, credential definition, revocation registry as well
@@ -42,6 +47,7 @@ export class CheqdAnonCredsRegistry implements AnonCredsRegistry {
 
   public async getSchema(agentContext: AgentContext, schemaId: string): Promise<GetSchemaReturn> {
     try {
+      agentContext.dependencyManager.resolve(AnonCredsApi)
       const cheqdDidResolver = agentContext.dependencyManager.resolve(CheqdDidResolver)
       const parsedDid = parseCheqdDid(schemaId)
       if (!parsedDid) throw new CredoError(`Invalid schemaId: ${schemaId}`)
@@ -49,6 +55,7 @@ export class CheqdAnonCredsRegistry implements AnonCredsRegistry {
       agentContext.config.logger.trace(`Submitting get schema request for schema '${schemaId}' to ledger`)
 
       const response = await cheqdDidResolver.resolveResource(agentContext, schemaId)
+      if (response.error) throw new Error(`${response.error}: ${response.message}`)
       const schema = JsonTransformer.fromJSON(response.resource, CheqdSchema)
 
       return {
@@ -139,7 +146,8 @@ export class CheqdAnonCredsRegistry implements AnonCredsRegistry {
     try {
       const cheqdDidRegistrar = agentContext.dependencyManager.resolve(CheqdDidRegistrar)
       const { credentialDefinition } = options
-      const schema = await this.getSchema(agentContext, credentialDefinition.schemaId)
+      const anoncredsRegistryService = agentContext.resolve(AnonCredsRegistryService)
+      const schema = await anoncredsRegistryService.getSchema(agentContext, credentialDefinition.schemaId)
       if (!schema.schema) throw new CredoError(`Schema not found for schemaId: ${credentialDefinition.schemaId}`)
 
       const credDefName = `${schema.schema.name}-${credentialDefinition.tag}`
@@ -211,6 +219,7 @@ export class CheqdAnonCredsRegistry implements AnonCredsRegistry {
       )
 
       const response = await cheqdDidResolver.resolveResource(agentContext, credentialDefinitionId)
+      if (response.error) throw new Error(`${response.error}: ${response.message}`)
       const credentialDefinition = JsonTransformer.fromJSON(response.resource, CheqdCredentialDefinition)
       return {
         credentialDefinition: {
@@ -258,6 +267,8 @@ export class CheqdAnonCredsRegistry implements AnonCredsRegistry {
           }`
 
       const response = await cheqdDidResolver.resolveResource(agentContext, searchDid)
+      if (response.error) throw new Error(`${response.error}: ${response.message}`)
+
       const revocationRegistryDefinition = JsonTransformer.fromJSON(
         response.resource,
         CheqdRevocationRegistryDefinition
@@ -296,7 +307,8 @@ export class CheqdAnonCredsRegistry implements AnonCredsRegistry {
     { revocationRegistryDefinition, options }: RegisterRevocationRegistryDefinitionOptions
   ): Promise<RegisterRevocationRegistryDefinitionReturn> {
     try {
-      const credentialDefinition = await this.getCredentialDefinition(
+      const anoncredsRegistryService = agentContext.resolve(AnonCredsRegistryService)
+      const credentialDefinition = await anoncredsRegistryService.getCredentialDefinition(
         agentContext,
         revocationRegistryDefinition.credDefId
       )
@@ -378,7 +390,8 @@ export class CheqdAnonCredsRegistry implements AnonCredsRegistry {
         `Submitting get revocation status request for '${revocationRegistryId}' to ledger`
       )
 
-      const revocationRegistryDefinition = await this.getRevocationRegistryDefinition(
+      const anoncredsRegistryService = agentContext.resolve(AnonCredsRegistryService)
+      const revocationRegistryDefinition = await anoncredsRegistryService.getRevocationRegistryDefinition(
         agentContext,
         revocationRegistryId
       )
@@ -393,7 +406,7 @@ export class CheqdAnonCredsRegistry implements AnonCredsRegistry {
         agentContext,
         `${parsedDid.did}?resourceType=${cheqdAnonCredsResourceTypes.revocationStatusList}&resourceVersionTime=${timestamp}&resourceName=${revocationRegistryDefinitionName}`
       )
-
+      if (response.error) throw new Error(`${response.error}: ${response.message}`)
       const revocationStatusList = JsonTransformer.fromJSON(response.resource, CheqdRevocationStatusList)
 
       const statusListTimestamp = response.resourceMetadata?.created
@@ -432,7 +445,8 @@ export class CheqdAnonCredsRegistry implements AnonCredsRegistry {
     { revocationStatusList, options }: RegisterRevocationStatusListOptions
   ): Promise<RegisterRevocationStatusListReturn> {
     try {
-      const revocationRegistryDefinition = await this.getRevocationRegistryDefinition(
+      const anoncredsRegistryService = agentContext.resolve(AnonCredsRegistryService)
+      const revocationRegistryDefinition = await anoncredsRegistryService.getRevocationRegistryDefinition(
         agentContext,
         revocationStatusList.revRegDefId
       )

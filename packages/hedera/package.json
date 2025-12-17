@@ -4,22 +4,17 @@
     "cli": "./build/index.mjs",
     "import": "./src/index.ts"
   },
-  "version": "0.5.13",
+  "version": "0.6.1",
   "files": [
     "build"
   ],
   "license": "Apache-2.0",
   "publishConfig": {
     "access": "public",
-    "main": "./build/index.js",
-    "types": "./build/index.d.ts",
+    "types": "./build/index.d.mts",
     "module": "./build/index.mjs",
     "exports": {
-      ".": {
-        "import": "./build/index.mjs",
-        "require": "./build/index.js",
-        "types": "./build/index.d.ts"
-      },
+      ".": "./build/index.mjs",
       "./package.json": "./package.json"
     }
   },
@@ -36,19 +31,19 @@
   "dependencies": {
     "@credo-ts/anoncreds": "workspace:*",
     "@credo-ts/core": "workspace:*",
-    "@hashgraph/sdk": "^2.72.0",
-    "@hiero-did-sdk/anoncreds": "^0.1.5",
-    "@hiero-did-sdk/cache": "^0.1.5",
-    "@hiero-did-sdk/client": "^0.1.5",
-    "@hiero-did-sdk/core": "^0.1.5",
-    "@hiero-did-sdk/hcs": "^0.1.5",
-    "@hiero-did-sdk/publisher-internal": "^0.1.5",
-    "@hiero-did-sdk/registrar": "^0.1.5",
-    "@hiero-did-sdk/resolver": "^0.1.5"
+    "@hashgraph/sdk": "^2.77.0",
+    "@hiero-did-sdk/anoncreds": "^0.1.7",
+    "@hiero-did-sdk/cache": "^0.1.7",
+    "@hiero-did-sdk/client": "^0.1.7",
+    "@hiero-did-sdk/core": "^0.1.7",
+    "@hiero-did-sdk/hcs": "^0.1.7",
+    "@hiero-did-sdk/publisher-internal": "^0.1.7",
+    "@hiero-did-sdk/registrar": "^0.1.7",
+    "@hiero-did-sdk/resolver": "^0.1.7"
   },
   "devDependencies": {
     "@credo-ts/node": "workspace:*",
-    "@hyperledger/anoncreds-nodejs": "^0.3.1",
+    "@hyperledger/anoncreds-nodejs": "catalog:",
     "zstd-napi": "^0.0.12"
   }
 }

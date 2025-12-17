@@ -1,9 +1,8 @@
-import type { Mdoc, SdJwtVc } from '@credo-ts/core'
+import type { MdocRecord, SdJwtVcRecord } from '@credo-ts/core'
 import {
   ClaimFormat,
   CredoError,
   DidsApi,
-  getPublicJwkFromVerificationMethod,
   JwsService,
   Jwt,
   JwtPayload,
@@ -31,6 +30,7 @@ import type { AgentType, TenantType } from './utils'
 import { createAgentFromModules, createTenantForAgent, waitForCredentialIssuanceSessionRecordSubject } from './utils'
 import {
   universityDegreeCredentialConfigurationSupported,
+  universityDegreeCredentialConfigurationSupportedJwkOnly,
   universityDegreeCredentialConfigurationSupportedMdoc,
 } from './utilsVci'
 
@@ -184,7 +184,7 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
     if (supportsJwk) {
       return {
         method: 'jwk',
-        keys: [getPublicJwkFromVerificationMethod(holder1.verificationMethod)],
+        keys: [holder1.publicJwk],
       }
     }
 
@@ -273,6 +273,7 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
       },
       authorizationServerConfigs: [
         {
+          type: 'direct',
           issuer: 'http://localhost:4747',
         },
       ],
@@ -325,11 +326,63 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
     })
 
     expect(credentialResponse.credentials).toHaveLength(1)
-    const compactSdJwtVcTenant1 = (credentialResponse.credentials[0].credentials[0] as SdJwtVc).compact
-    const sdJwtVcTenant1 = holderTenant.sdJwtVc.fromCompact(compactSdJwtVcTenant1)
-    expect(sdJwtVcTenant1.payload.vct).toEqual('UniversityDegreeCredential')
+    const firstSdJwtVcTenant1 = (credentialResponse.credentials[0].record as SdJwtVcRecord).firstCredential
+
+    // KMS key id should not be defined for did-based credentials
+    expect(firstSdJwtVcTenant1.holder?.method).toEqual('did')
+    expect(firstSdJwtVcTenant1.kmsKeyId).toBeUndefined()
+
+    expect(firstSdJwtVcTenant1.payload.vct).toEqual('UniversityDegreeCredential')
 
     await holderTenant.endSession()
+    clearNock()
+  })
+
+  it('e2e flow with tenants, issuer endpoints requesting a sd-jwt-vc using pre-authorized code flow', async () => {
+    const issuerTenant = await issuer.agent.modules.tenants.getTenantAgent({ tenantId: issuer1.tenantId })
+    const holderTenant = await holder.agent.modules.tenants.getTenantAgent({ tenantId: holder1.tenantId })
+
+    const openIdIssuerTenant = await issuerTenant.modules.openid4vc.issuer.createIssuer({
+      issuerId: '8bc91672-6a32-466c-96ec-6efca8760068',
+      credentialConfigurationsSupported: {
+        universityDegree: universityDegreeCredentialConfigurationSupportedJwkOnly,
+      },
+    })
+
+    const { issuanceSession, credentialOffer } = await issuerTenant.modules.openid4vc.issuer.createCredentialOffer({
+      issuerId: openIdIssuerTenant.issuerId,
+      credentialConfigurationIds: ['universityDegree'],
+      preAuthorizedCodeFlowConfig: {},
+      version: 'v1.draft15',
+    })
+
+    const resolvedCredentialOffer = await holderTenant.modules.openid4vc.holder.resolveCredentialOffer(credentialOffer)
+
+    // Bind to JWK
+    const tokenResponseTenant = await holderTenant.modules.openid4vc.holder.requestToken({
+      resolvedCredentialOffer,
+    })
+    const credentialResponse = await holderTenant.modules.openid4vc.holder.requestCredentials({
+      resolvedCredentialOffer,
+      ...tokenResponseTenant,
+      credentialBindingResolver,
+    })
+
+    await waitForCredentialIssuanceSessionRecordSubject(issuer.replaySubject, {
+      state: OpenId4VcIssuanceSessionState.Completed,
+      issuanceSessionId: issuanceSession.id,
+      contextCorrelationId: issuerTenant.context.contextCorrelationId,
+    })
+
+    expect(credentialResponse.credentials).toHaveLength(1)
+    const firstSdJwtVcTenant1 = (credentialResponse.credentials[0].record as SdJwtVcRecord).firstCredential
+
+    // KMS key id Must be defined for jwk-based credentials
+    expect(firstSdJwtVcTenant1.holder?.method).toEqual('jwk')
+    expect(firstSdJwtVcTenant1.kmsKeyId).toBeDefined()
+
+    expect(firstSdJwtVcTenant1.payload.vct).toEqual('UniversityDegreeCredential')
+
     clearNock()
   })
 
@@ -356,7 +409,7 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
     expect(issuer1Record.credentialConfigurationsSupported).toEqual({
       universityDegree: {
         format: 'mso_mdoc',
-        cryptographic_binding_methods_supported: ['did:key', 'jwk'],
+        cryptographic_binding_methods_supported: ['jwk'],
         proof_types_supported: {
           jwt: {
             proof_signing_alg_values_supported: ['ES256', 'EdDSA'],
@@ -392,7 +445,7 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
     expect(resolvedCredentialOffer1.offeredCredentialConfigurations).toEqual({
       universityDegree: {
         doctype: 'UniversityDegreeCredential',
-        cryptographic_binding_methods_supported: ['did:key', 'jwk'],
+        cryptographic_binding_methods_supported: ['jwk'],
         format: 'mso_mdoc',
         scope: universityDegreeCredentialConfigurationSupportedMdoc.scope,
         proof_types_supported: {
@@ -473,9 +526,8 @@ pUGCFdfNLQIgHGSa5u5ZqUtCrnMiaEageO71rjzBlov0YUH4+6ELioY=
     })
 
     expect(credentialsTenant1.credentials).toHaveLength(1)
-    const mdocBase64Url = (credentialsTenant1.credentials[0].credentials[0] as Mdoc).base64Url
-    const mdoc = holderTenant1.mdoc.fromBase64Url(mdocBase64Url)
-    expect(mdoc.docType).toEqual('UniversityDegreeCredential')
+    const firstMdoc = (credentialsTenant1.credentials[0].record as MdocRecord).firstCredential
+    expect(firstMdoc.docType).toEqual('UniversityDegreeCredential')
 
     await holderTenant1.endSession()
   })

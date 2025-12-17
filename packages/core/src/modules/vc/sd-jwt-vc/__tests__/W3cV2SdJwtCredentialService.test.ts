@@ -65,8 +65,12 @@ const kms = agentContext.dependencyManager.resolve(KeyManagementApi)
 const dids = agentContext.dependencyManager.resolve(DidsApi)
 const w3cV2JwtCredentialService = new W3cV2SdJwtCredentialService()
 
-kms.randomBytes = vi.fn(() => TypedArrayEncoder.fromString('salt'))
-Date.prototype.getTime = vi.fn(() => 1698151532000)
+kms.randomBytes = vi.fn(function () {
+  return TypedArrayEncoder.fromString('salt')
+})
+Date.prototype.getTime = vi.fn(function () {
+  return 1698151532000
+})
 
 describe('W3cV2SdJwtCredentialService', () => {
   let issuerDidJwk: DidJwk
@@ -297,7 +301,7 @@ describe('W3cV2SdJwtCredentialService', () => {
     test('returns invalid result when credential is expired', async () => {
       const jwtVc = W3cV2SdJwtVerifiableCredential.fromCompact(CredoEs256DidJwkJwtVc)
 
-      jwtVc.sdJwt.payload.exp = Math.floor(new Date('2020-01-01').getTime() / 1000)
+      jwtVc.sdJwt.payload.exp = 1577836800
 
       const result = await w3cV2JwtCredentialService.verifyCredential(agentContext, {
         credential: jwtVc,
@@ -313,7 +317,7 @@ describe('W3cV2SdJwtCredentialService', () => {
         },
       })
 
-      expect(result.validations.dataModel?.error?.message).toContain('JWT expired at 1698151532')
+      expect(result.validations.dataModel?.error?.message).toContain('JWT expired at 1577836800')
     })
   })
 

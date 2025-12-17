@@ -89,6 +89,22 @@ export function getOid4vcJwtVerifyCallback(
       })
     }
 
+    if (signer.method === 'x5c' && header.typ === 'openidvci-issuer-metadata+jwt' && !trustedCertificates) {
+      const x509Config = agentContext.dependencyManager.resolve(X509ModuleConfig)
+      const certificateChain = signer.x5c?.map((cert) => X509Certificate.fromEncodedCertificate(cert))
+
+      trustedCertificates = await x509Config.getTrustedCertificatesForVerification?.(agentContext, {
+        certificateChain,
+        verification: {
+          type: 'openId4VciCredentialIssuerMetadata',
+          credentialIssuerMetadata: {
+            jwt: compact,
+            payload: JwtPayload.fromJson(payload),
+          },
+        },
+      })
+    }
+
     if (
       signer.method === 'x5c' &&
       header.typ === 'oauth-client-attestation+jwt' &&
@@ -364,7 +380,7 @@ export function getOid4vcJwtSignCallback(agentContext: AgentContext): SignJwtCal
 
     if (!publicJwk.supportedSignatureAlgorithms.includes(signer.alg as Kms.KnownJwaSignatureAlgorithm)) {
       throw new CredoError(
-        `jwk ${publicJwk.jwkTypehumanDescription} does not support JWS signature alg '${signer.alg}'`
+        `jwk ${publicJwk.jwkTypeHumanDescription} does not support JWS signature alg '${signer.alg}'`
       )
     }
 

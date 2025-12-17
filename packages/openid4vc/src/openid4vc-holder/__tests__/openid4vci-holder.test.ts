@@ -4,8 +4,9 @@ import {
   DidKey,
   type KeyDidCreateOptions,
   Kms,
-  type SdJwtVc,
+  SdJwtVcRecord,
   TypedArrayEncoder,
+  W3cCredentialRecord,
   W3cCredentialService,
   W3cJwtVerifiableCredential,
 } from '@credo-ts/core'
@@ -132,11 +133,11 @@ describe('OpenId4VcHolder', () => {
       })
 
       expect(credentialsResult.credentials).toHaveLength(1)
-      const w3cCredential = credentialsResult.credentials[0].credentials[0] as W3cJwtVerifiableCredential
+      const w3cCredential = (credentialsResult.credentials[0].record as W3cCredentialRecord).firstCredential
       expect(w3cCredential).toBeInstanceOf(W3cJwtVerifiableCredential)
 
-      expect(w3cCredential.credential.type).toEqual(['VerifiableCredential', 'OpenBadgeCredential'])
-      expect(w3cCredential.credential.credentialSubjectIds[0]).toEqual(holderDid)
+      expect(w3cCredential.type).toEqual(['VerifiableCredential', 'OpenBadgeCredential'])
+      expect(w3cCredential.credentialSubjectIds[0]).toEqual(holderDid)
     })
 
     it('Should successfully receive credential from walt.id using the pre-authorized flow using a did:key Ed25519 subject and jwt_vc_json credential', async () => {
@@ -192,6 +193,9 @@ describe('OpenId4VcHolder', () => {
         .get('/.well-known/oauth-authorization-server/oid4vci/0bbfb1c0-9f45-478c-a139-08f6ed610a37')
         .reply(404)
 
+        .get('/.well-known/openid-credential-issuer/oid4vci/0bbfb1c0-9f45-478c-a139-08f6ed610a37')
+        .reply(404)
+
       // setup server metadata response
       nock('https://openid4vc.animo.id/oid4vci/0bbfb1c0-9f45-478c-a139-08f6ed610a37')
         .get('/.well-known/openid-configuration')
@@ -228,7 +232,7 @@ describe('OpenId4VcHolder', () => {
         // or determine the did dynamically we could use any signature algorithm
         allowedProofOfPossessionSignatureAlgorithms: [Kms.KnownJwaSignatureAlgorithms.EdDSA],
         credentialConfigurationIds: Object.entries(resolvedCredentialOffer.offeredCredentialConfigurations)
-          .filter(([, configuration]) => configuration.format === 'vc+sd-jwt')
+          .filter(([, configuration]) => configuration.format === 'dc+sd-jwt')
           .map(([id]) => id),
         credentialBindingResolver: () => ({ method: 'jwk', keys: [holderKey] }),
       })
@@ -244,7 +248,7 @@ describe('OpenId4VcHolder', () => {
       })
 
       expect(credentialResponse.credentials).toHaveLength(1)
-      const credential = credentialResponse.credentials[0].credentials[0] as SdJwtVc
+      const credential = (credentialResponse.credentials[0].record as SdJwtVcRecord).firstCredential
       expect(credential).toEqual({
         claimFormat: 'dc+sd-jwt',
         compact:
@@ -256,6 +260,23 @@ describe('OpenId4VcHolder', () => {
           kid: '#z6Mkh5HNPCCJWZn6WRLjRPttyvYZBskZUdSJfTiZwcUSieqx',
           typ: 'vc+sd-jwt',
         },
+        holder: {
+          jwk: {
+            jwk: {
+              jwk: {
+                crv: 'Ed25519',
+                kty: 'OKP',
+                x: 'kc2tlphcZw1AIKykzM6pcci6QsKAocYzFL-5Fe36h6E',
+              },
+              multicodecPrefix: 237,
+              supportdEncryptionKeyAgreementAlgorithms: [],
+              supportedSignatureAlgorithms: ['EdDSA', 'Ed25519'],
+            },
+          },
+          method: 'jwk',
+        },
+        kbJwt: undefined,
+        kmsKeyId: expect.any(String),
         payload: {
           _sd_alg: 'sha-256',
           cnf: {

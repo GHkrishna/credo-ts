@@ -4,22 +4,17 @@
     "cli": "./build/index.mjs",
     "import": "./src/index.ts"
   },
-  "version": "0.5.13",
+  "version": "0.6.1",
   "files": [
     "build"
   ],
   "license": "Apache-2.0",
   "publishConfig": {
     "access": "public",
-    "main": "./build/index.js",
-    "types": "./build/index.d.ts",
+    "types": "./build/index.d.mts",
     "module": "./build/index.mjs",
     "exports": {
-      ".": {
-        "import": "./build/index.mjs",
-        "require": "./build/index.js",
-        "types": "./build/index.d.ts"
-      },
+      ".": "./build/index.mjs",
       "./package.json": "./package.json"
     }
   },
@@ -34,11 +29,11 @@
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
-    "@cheqd/sdk": "npm:@cheqd/sdk-esm@^5.3.4",
-    "@cheqd/ts-proto": "^4.1.1",
-    "@cosmjs/crypto": "^0.33.1",
-    "@cosmjs/proto-signing": "^0.33.1",
-    "@cosmjs/stargate": "^0.33.1",
+    "@cheqd/sdk": "npm:@cheqd/sdk-esm@~5.3.7",
+    "@cheqd/ts-proto": "^4.2.0",
+    "@cosmjs/crypto": "^0.36.2",
+    "@cosmjs/proto-signing": "^0.36.2",
+    "@cosmjs/stargate": "^0.36.2",
     "@credo-ts/anoncreds": "workspace:*",
     "@credo-ts/core": "workspace:*",
     "@stablelib/ed25519": "catalog:",

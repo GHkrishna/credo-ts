@@ -4,22 +4,17 @@
     "cli": "./build/index.mjs",
     "import": "./src/index.ts"
   },
-  "version": "0.5.13",
+  "version": "0.6.1",
   "files": [
     "build"
   ],
   "license": "Apache-2.0",
   "publishConfig": {
     "access": "public",
-    "main": "./build/index.js",
-    "types": "./build/index.d.ts",
+    "types": "./build/index.d.mts",
     "module": "./build/index.mjs",
     "exports": {
-      ".": {
-        "import": "./build/index.mjs",
-        "require": "./build/index.js",
-        "types": "./build/index.d.ts"
-      },
+      ".": "./build/index.mjs",
       "./package.json": "./package.json"
     }
   },
@@ -44,8 +39,8 @@
     "@credo-ts/tenants": "workspace:*",
     "@openwallet-foundation/askar-nodejs": "catalog:",
     "@openwallet-foundation/askar-shared": "catalog:",
-    "@types/ref-array-di": "^1.2.6",
-    "@types/ref-struct-di": "^1.1.10",
+    "@types/ref-array-di": "^1.2.8",
+    "@types/ref-struct-di": "^1.1.12",
     "reflect-metadata": "catalog:",
     "typescript": "catalog:"
   },

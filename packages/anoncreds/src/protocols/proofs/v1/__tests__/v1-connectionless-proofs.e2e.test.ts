@@ -12,12 +12,9 @@ import {
   waitForProofExchangeRecordSubject,
 } from '../../../../../../core/tests'
 import {
-  DidCommAttachment,
-  DidCommAttachmentData,
   DidCommAutoAcceptProof,
   DidCommCredentialEventTypes,
   DidCommHandshakeProtocol,
-  DidCommLinkedAttachment,
   DidCommMediatorPickupStrategy,
   DidCommProofEventTypes,
   DidCommProofState,
@@ -30,6 +27,11 @@ import {
   setupAnonCredsTests,
 } from '../../../../../tests/legacyAnonCredsSetup'
 import { DidCommCredentialV1Preview } from '../../../credentials/v1'
+import {
+  DidCommPresentationV1Message,
+  DidCommProposePresentationV1Message,
+  DidCommRequestPresentationV1Message,
+} from '../messages'
 
 describe('V1 Proofs - Connectionless - Indy', () => {
   let agents: Agent[]
@@ -442,7 +444,7 @@ describe('V1 Proofs - Connectionless - Indy', () => {
     agents = [aliceAgent, faberAgent, mediatorAgent]
 
     const { credentialDefinition } = await prepareForAnonCredsIssuance(faberAgent, {
-      attributeNames: ['name', 'age', 'image_0', 'image_1'],
+      attributeNames: ['name', 'age'],
     })
 
     const [faberConnection, aliceConnection] = await makeConnection(faberAgent, aliceAgent)
@@ -458,22 +460,6 @@ describe('V1 Proofs - Connectionless - Indy', () => {
       offer: {
         credentialDefinitionId: credentialDefinition.credentialDefinitionId,
         attributes: credentialPreview.attributes,
-        linkedAttachments: [
-          new DidCommLinkedAttachment({
-            name: 'image_0',
-            attachment: new DidCommAttachment({
-              filename: 'picture-of-a-cat.png',
-              data: new DidCommAttachmentData({ base64: 'cGljdHVyZSBvZiBhIGNhdA==' }),
-            }),
-          }),
-          new DidCommLinkedAttachment({
-            name: 'image_1',
-            attachment: new DidCommAttachment({
-              filename: 'picture-of-a-dog.png',
-              data: new DidCommAttachmentData({ base64: 'UGljdHVyZSBvZiBhIGRvZw==' }),
-            }),
-          }),
-        ],
       },
     })
 
@@ -544,5 +530,131 @@ describe('V1 Proofs - Connectionless - Indy', () => {
 
     await aliceAgent.didcomm.mediationRecipient.stopMessagePickup()
     await faberAgent.didcomm.mediationRecipient.stopMessagePickup()
+  })
+
+  test('Alice Creates oob proof proposal for Faber', async () => {
+    const {
+      holderAgent: aliceAgent,
+      issuerAgent: faberAgent,
+      holderReplay: aliceReplay,
+      credentialDefinitionId,
+      issuerReplay: faberReplay,
+      issuerHolderConnectionId: faberConnectionId,
+    } = await setupAnonCredsTests({
+      issuerName: 'Faber v1 connection-less Propose Proofs',
+      holderName: 'Alice v1 connection-less Propose Proofs',
+      autoAcceptProofs: DidCommAutoAcceptProof.Never,
+      attributeNames: ['name', 'age'],
+    })
+
+    agents = [aliceAgent, faberAgent]
+
+    await issueLegacyAnonCredsCredential({
+      issuerAgent: faberAgent,
+      issuerReplay: faberReplay,
+      holderAgent: aliceAgent,
+      holderReplay: aliceReplay,
+      issuerHolderConnectionId: faberConnectionId,
+      offer: {
+        credentialDefinitionId,
+        attributes: [
+          {
+            name: 'name',
+            value: 'Alice',
+          },
+          {
+            name: 'age',
+            value: '99',
+          },
+        ],
+      },
+    })
+    testLogger.test('Alice creates oob proof proposal for Faber')
+    const { message } = await aliceAgent.didcomm.proofs.createProofProposal({
+      protocolVersion: 'v1',
+      proofFormats: {
+        indy: {
+          name: 'ProofRequest',
+          version: '1.0',
+          attributes: [
+            {
+              name: 'name',
+              value: 'John',
+              credentialDefinitionId,
+              referent: '0',
+            },
+          ],
+          predicates: [
+            {
+              name: 'age',
+              predicate: '>=',
+              threshold: 50,
+              credentialDefinitionId,
+            },
+          ],
+        },
+      },
+      comment: 'V1 propose proof test',
+    })
+    const { outOfBandInvitation } = await aliceAgent.didcomm.oob.createInvitation({
+      messages: [message],
+      autoAcceptConnection: true,
+    })
+    await faberAgent.didcomm.oob.receiveInvitation(outOfBandInvitation, { label: 'faber' })
+    testLogger.test('Faber waits for proof proposal message from Alice')
+    let faberProofExchangeRecord = await waitForProofExchangeRecordSubject(faberReplay, {
+      state: DidCommProofState.ProposalReceived,
+    })
+
+    // Faber accepts the presentation proposal from Alice
+    testLogger.test('Faber accepts presentation proposal from Alice')
+    faberProofExchangeRecord = await faberAgent.didcomm.proofs.acceptProposal({
+      proofExchangeRecordId: faberProofExchangeRecord.id,
+    })
+
+    // ALice waits for presentation request from Faber
+    testLogger.test('Alice waits for presentation request from Faber')
+    let aliceProofExchangeRecord = await waitForProofExchangeRecordSubject(aliceReplay, {
+      state: DidCommProofState.RequestReceived,
+    })
+    expect(aliceProofExchangeRecord.connectionId).not.toBeNull()
+
+    // Alice retrieves the requested credentials and accepts the presentation
+    testLogger.test('Alice accepts presentation request from Faber')
+    const requestedCredentials = await aliceAgent.didcomm.proofs.selectCredentialsForRequest({
+      proofExchangeRecordId: aliceProofExchangeRecord.id,
+    })
+    await aliceAgent.didcomm.proofs.acceptRequest({
+      proofExchangeRecordId: aliceProofExchangeRecord.id,
+      proofFormats: { indy: requestedCredentials.proofFormats.indy },
+    })
+
+    // Faber waits for the presentation from Alice
+    testLogger.test('Faber waits for presentation from Alice')
+    faberProofExchangeRecord = await waitForProofExchangeRecordSubject(faberReplay, {
+      threadId: aliceProofExchangeRecord.threadId,
+      state: DidCommProofState.PresentationReceived,
+    })
+
+    // Faber accepts the presentation provided by Alice
+    testLogger.test('Faber accepts the presentation provided by Alice')
+    await faberAgent.didcomm.proofs.acceptPresentation({
+      proofExchangeRecordId: faberProofExchangeRecord.id,
+    })
+
+    // Alice waits utils she received a presentation acknowledgement
+    testLogger.test('Alice waits until she receives a presentation acknowledgement')
+    aliceProofExchangeRecord = await waitForProofExchangeRecordSubject(aliceReplay, {
+      threadId: aliceProofExchangeRecord.threadId,
+      state: DidCommProofState.Done,
+    })
+
+    const proposalMessage = await aliceAgent.didcomm.proofs.findProposalMessage(aliceProofExchangeRecord.id)
+    const requestMessage = await aliceAgent.didcomm.proofs.findRequestMessage(aliceProofExchangeRecord.id)
+    const presentationMessage = await aliceAgent.didcomm.proofs.findPresentationMessage(aliceProofExchangeRecord.id)
+
+    expect(proposalMessage).toBeInstanceOf(DidCommProposePresentationV1Message)
+    expect(requestMessage).toBeInstanceOf(DidCommRequestPresentationV1Message)
+    expect(presentationMessage).toBeInstanceOf(DidCommPresentationV1Message)
   })
 })

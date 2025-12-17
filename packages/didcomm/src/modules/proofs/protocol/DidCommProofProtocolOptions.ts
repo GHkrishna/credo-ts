@@ -58,13 +58,12 @@ export type ProofFormatDataMessagePayload<
  * }
  * ```
  */
-export type ProofFormatsFromProtocols<Type extends DidCommProofProtocol[]> = Type[number] extends DidCommProofProtocol<
-  infer ProofFormatServices
->
-  ? ProofFormatServices extends DidCommProofFormatService[]
-    ? ExtractProofFormats<ProofFormatServices>
+export type ProofFormatsFromProtocols<Type extends DidCommProofProtocol[]> =
+  Type[number] extends DidCommProofProtocol<infer ProofFormatServices>
+    ? ProofFormatServices extends DidCommProofFormatService[]
+      ? ExtractProofFormats<ProofFormatServices>
+      : never
     : never
-  : never
 
 export type GetProofFormatDataReturn<PFs extends DidCommProofFormat[] = DidCommProofFormat[]> = {
   proposal?: ProofFormatDataMessagePayload<PFs, 'proposal'>
@@ -88,7 +87,7 @@ interface BaseOptions {
 }
 
 export interface CreateProofProposalOptions<PFs extends DidCommProofFormatService[]> extends BaseOptions {
-  connectionRecord: DidCommConnectionRecord
+  connectionRecord?: DidCommConnectionRecord
   proofFormats: DidCommProofFormatPayload<ExtractProofFormats<PFs>, 'createProposal'>
   parentThreadId?: string
 }
